@@ -1,0 +1,26 @@
+import json
+from datetime import datetime
+
+class SaleManager:
+    def __init__(self, sales_file="data/sales.json"):
+        self.sales_file = sales_file
+
+    def get_sales(self):
+        try:
+            with open(self.sales_file, "r") as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return []
+
+    def record_sale(self, cart, total):
+        sales = self.get_sales()
+
+        sale = {
+            "timestamp": datetime.now().isoformat(),
+            "items": cart,
+            "total": total
+        }
+        sales.append(sale)
+
+        with open(self.sales_file, "w") as f:
+            json.dump(sales, f, indent=4)
