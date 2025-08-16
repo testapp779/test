@@ -7,13 +7,17 @@ from login_screen import LoginScreen
 from datetime import datetime
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import pos_app.theme as theme
 
 class POSApp(tk.Tk):
     def __init__(self, user_role):
         super().__init__()
         self.user_role = user_role
         self.title(f"Point of Sale - Logged in as {self.user_role}")
-        self.geometry("1024x768")
+        self.geometry("1200x800")
+        self.configure(bg=theme.BG_COLOR)
+
+        self.setup_styles()
 
         self.product_manager = ProductManager("pos_app/data/products.json")
         self.sale_manager = SaleManager("pos_app/data/sales.json")
@@ -22,11 +26,44 @@ class POSApp(tk.Tk):
         self.current_total = 0.0
 
         self.notebook = ttk.Notebook(self)
-        self.notebook.pack(expand=True, fill="both")
+        self.notebook.pack(expand=True, fill="both", padx=10, pady=10)
         self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
 
         self.create_tabs_based_on_role()
         self.create_logout_button()
+
+    def setup_styles(self):
+        style = ttk.Style(self)
+        style.theme_use("clam")
+
+        # General widget styling
+        style.configure(".", background=theme.BG_COLOR, foreground=theme.FG_COLOR, font=theme.FONT_NORMAL)
+        style.configure("TFrame", background=theme.BG_COLOR)
+        style.configure("TLabel", background=theme.BG_COLOR, foreground=theme.FG_COLOR)
+        style.configure("TLabelFrame", background=theme.BG_COLOR, foreground=theme.FG_COLOR, borderwidth=1)
+        style.configure("TLabelFrame.Label", background=theme.BG_COLOR, foreground=theme.FG_COLOR, font=theme.FONT_BOLD)
+
+        # Button styling
+        style.configure("TButton", background=theme.BUTTON_BG_COLOR, foreground=theme.BUTTON_FG_COLOR, font=theme.FONT_BOLD, borderwidth=0, padding=5)
+        style.map("TButton", background=[("active", "#4ca8e1")])
+
+        # Entry styling
+        style.configure("TEntry", fieldbackground=theme.FRAME_BG_COLOR, foreground=theme.FG_COLOR, insertbackground=theme.FG_COLOR, borderwidth=0)
+
+        # Notebook (Tabs) styling
+        style.configure("TNotebook", background=theme.BG_COLOR, borderwidth=0)
+        style.configure("TNotebook.Tab", background=theme.BG_COLOR, foreground=theme.FG_COLOR, padding=[10, 5], font=theme.FONT_NORMAL, borderwidth=0)
+        style.map("TNotebook.Tab", background=[("selected", theme.FRAME_BG_COLOR)], foreground=[("selected", theme.FG_COLOR)])
+
+        # Treeview (Table) styling
+        style.configure("Treeview", background=theme.FRAME_BG_COLOR, fieldbackground=theme.FRAME_BG_COLOR, foreground=theme.FG_COLOR, rowheight=25, borderwidth=0)
+        style.configure("Treeview.Heading", background=theme.BUTTON_BG_COLOR, foreground=theme.BUTTON_FG_COLOR, font=theme.FONT_BOLD, padding=5)
+        style.map("Treeview.Heading", background=[("active", "#4ca8e1")])
+
+        # Custom styles
+        style.configure("Total.TLabel", foreground=theme.FG_COLOR, background=theme.BG_COLOR, font=theme.FONT_TOTAL)
+        style.configure("Accent.TButton", background=theme.BUTTON_BG_COLOR, foreground=theme.BUTTON_FG_COLOR, font=theme.FONT_BOLD, padding=10)
+        style.map("Accent.TButton", background=[("active", "#4ca8e1")])
 
     def create_tabs_based_on_role(self):
         if self.user_role == "Admin":
@@ -46,21 +83,21 @@ class POSApp(tk.Tk):
         main() # Restart the application
 
     def create_product_management_tab(self):
-        product_frame = ttk.Frame(self.notebook)
+        product_frame = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(product_frame, text="Product Management")
 
         # Product List
         product_list_frame = ttk.LabelFrame(product_frame, text="Products")
-        product_list_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+        product_list_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
-        self.product_list = tk.Listbox(product_list_frame)
-        self.product_list.pack(fill="both", expand=True)
+        self.product_list = tk.Listbox(product_list_frame, bg=theme.FRAME_BG_COLOR, fg=theme.FG_COLOR, selectbackground=theme.BUTTON_BG_COLOR, font=theme.FONT_NORMAL, borderwidth=0, highlightthickness=0)
+        self.product_list.pack(fill="both", expand=True, padx=5, pady=5)
         self.product_list.bind("<<ListboxSelect>>", self.show_selected_product)
         self.load_products_to_listbox()
 
         # Product Details
         product_details_frame = ttk.LabelFrame(product_frame, text="Product Details")
-        product_details_frame.pack(side="right", fill="y", padx=10, pady=10)
+        product_details_frame.pack(side="right", fill="y", ipadx=10, ipady=10)
 
         ttk.Label(product_details_frame, text="Name:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.product_name = ttk.Entry(product_details_frame)
@@ -88,23 +125,26 @@ class POSApp(tk.Tk):
         ttk.Button(button_frame, text="Clear", command=self.clear_product_fields).pack(side="left", padx=5)
 
     def on_tab_changed(self, event):
-        # We need to adjust tab indices based on the role
-        selected_tab_text = self.notebook.tab(self.notebook.select(), "text")
+        try:
+            selected_tab_text = self.notebook.tab(self.notebook.select(), "text")
+        except tk.TclError:
+            return # No tab selected
 
         if selected_tab_text == "Sales":
             self.refresh_sales_product_list()
+            self.barcode_entry.focus_set()
         elif selected_tab_text == "Sales Report":
             self.load_sales_report()
         elif selected_tab_text == "Analytics":
             self.load_analytics()
 
     def create_analytics_tab(self):
-        analytics_frame = ttk.Frame(self.notebook)
+        analytics_frame = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(analytics_frame, text="Analytics")
 
         # Top Products
         top_products_frame = ttk.LabelFrame(analytics_frame, text="Top Selling Products")
-        top_products_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+        top_products_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
         self.top_products_tree = ttk.Treeview(top_products_frame, columns=("product", "quantity_sold", "revenue"), show="headings")
         self.top_products_tree.heading("product", text="Product")
@@ -114,20 +154,28 @@ class POSApp(tk.Tk):
 
         # Sales Chart
         chart_frame = ttk.LabelFrame(analytics_frame, text="Daily Sales")
-        chart_frame.pack(side="right", fill="both", expand=True, padx=10, pady=10)
+        chart_frame.pack(side="right", fill="both", expand=True)
 
-        fig = plt.figure(figsize=(5, 4), dpi=100)
+        fig = plt.figure(figsize=(5, 4), dpi=100, facecolor=theme.BG_COLOR)
         self.sales_chart_ax = fig.add_subplot(111)
+        self.sales_chart_ax.set_facecolor(theme.FRAME_BG_COLOR)
+        self.sales_chart_ax.tick_params(axis='x', colors=theme.FG_COLOR)
+        self.sales_chart_ax.tick_params(axis='y', colors=theme.FG_COLOR)
+        self.sales_chart_ax.spines['bottom'].set_color(theme.FG_COLOR)
+        self.sales_chart_ax.spines['top'].set_color(theme.FG_COLOR)
+        self.sales_chart_ax.spines['right'].set_color(theme.FG_COLOR)
+        self.sales_chart_ax.spines['left'].set_color(theme.FG_COLOR)
+
         self.sales_chart_canvas = FigureCanvasTkAgg(fig, master=chart_frame)
         self.sales_chart_canvas.get_tk_widget().pack(fill="both", expand=True)
-
 
     def load_analytics(self):
         self.load_top_products()
         self.load_sales_chart()
 
     def load_top_products(self):
-        self.top_products_tree.delete(*self.top_products_tree.get_children())
+        for i in self.top_products_tree.get_children():
+            self.top_products_tree.delete(i)
         sales = self.sale_manager.get_sales()
 
         product_sales = {}
@@ -156,24 +204,29 @@ class POSApp(tk.Tk):
             daily_sales[sale_date] += sale['total']
 
         sorted_days = sorted(daily_sales.items())
+        if not sorted_days:
+            self.sales_chart_ax.text(0.5, 0.5, "No Sales Data", ha='center', va='center', color=theme.FG_COLOR)
+            self.sales_chart_canvas.draw()
+            return
+
         dates = [day[0].strftime('%Y-%m-%d') for day in sorted_days]
         totals = [day[1] for day in sorted_days]
 
-        self.sales_chart_ax.bar(dates, totals)
-        self.sales_chart_ax.set_title("Total Sales per Day")
-        self.sales_chart_ax.set_xlabel("Date")
-        self.sales_chart_ax.set_ylabel("Total Sales ($)")
+        self.sales_chart_ax.bar(dates, totals, color=theme.BUTTON_BG_COLOR)
+        self.sales_chart_ax.set_title("Total Sales per Day", color=theme.FG_COLOR)
+        self.sales_chart_ax.set_xlabel("Date", color=theme.FG_COLOR)
+        self.sales_chart_ax.set_ylabel("Total Sales ($)", color=theme.FG_COLOR)
         plt.setp(self.sales_chart_ax.get_xticklabels(), rotation=45, ha="right")
+        self.sales_chart_ax.figure.tight_layout()
         self.sales_chart_canvas.draw()
 
-
     def create_sales_report_tab(self):
-        report_frame = ttk.Frame(self.notebook)
+        report_frame = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(report_frame, text="Sales Report")
 
         # Filter frame
         filter_frame = ttk.LabelFrame(report_frame, text="Filter by Date")
-        filter_frame.pack(fill="x", padx=10, pady=5)
+        filter_frame.pack(fill="x", pady=(0, 10), ipady=5)
 
         ttk.Label(filter_frame, text="Start Date (YYYY-MM-DD):").pack(side="left", padx=5)
         self.start_date_entry = ttk.Entry(filter_frame)
@@ -186,9 +239,8 @@ class POSApp(tk.Tk):
         ttk.Button(filter_frame, text="Filter", command=self.load_sales_report).pack(side="left", padx=5)
         ttk.Button(filter_frame, text="Clear Filter", command=self.clear_sales_filter).pack(side="left", padx=5)
 
-
         report_tree_frame = ttk.LabelFrame(report_frame, text="All Sales")
-        report_tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        report_tree_frame.pack(fill="both", expand=True)
 
         self.sales_report_tree = ttk.Treeview(report_tree_frame, columns=("timestamp", "items", "total"), show="headings")
         self.sales_report_tree.heading("timestamp", text="Timestamp")
@@ -202,26 +254,21 @@ class POSApp(tk.Tk):
         self.load_sales_report()
 
     def load_sales_report(self):
-        self.sales_report_tree.delete(*self.sales_report_tree.get_children())
+        for i in self.sales_report_tree.get_children():
+            self.sales_report_tree.delete(i)
         sales = self.sale_manager.get_sales()
 
         start_date_str = self.start_date_entry.get()
         end_date_str = self.end_date_entry.get()
 
         try:
-            if start_date_str:
-                start_date = datetime.fromisoformat(start_date_str)
-            else:
-                start_date = None
-            if end_date_str:
-                end_date = datetime.fromisoformat(end_date_str + "T23:59:59.999999")
-            else:
-                end_date = None
+            start_date = datetime.fromisoformat(start_date_str) if start_date_str else None
+            end_date = datetime.fromisoformat(end_date_str + "T23:59:59.999999") if end_date_str else None
         except ValueError:
             messagebox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
             return
 
-        for sale in sales:
+        for sale in reversed(sales):
             sale_time = datetime.fromisoformat(sale["timestamp"])
             if (start_date and sale_time < start_date) or (end_date and sale_time > end_date):
                 continue
@@ -233,26 +280,22 @@ class POSApp(tk.Tk):
     def refresh_sales_product_list(self):
         self.sales_product_combo['values'] = [p['name'] for p in self.product_manager.products if p['quantity'] > 0]
 
-
     def create_sales_tab(self):
-        sales_frame = ttk.Frame(self.notebook)
+        sales_frame = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(sales_frame, text="Sales")
 
-        # Left side: Product selection and cart
         left_frame = ttk.Frame(sales_frame)
-        left_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+        left_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
-        # Barcode Entry
         barcode_frame = ttk.LabelFrame(left_frame, text="Scan Barcode")
-        barcode_frame.pack(fill="x", pady=5)
+        barcode_frame.pack(fill="x", pady=(0, 5), ipady=5)
 
         self.barcode_entry = ttk.Entry(barcode_frame)
         self.barcode_entry.pack(fill="x", padx=5, pady=5)
         self.barcode_entry.bind("<Return>", self.add_product_by_barcode)
 
-        # Manual Product selection
         product_selection_frame = ttk.LabelFrame(left_frame, text="Or Add Manually")
-        product_selection_frame.pack(fill="x", pady=5)
+        product_selection_frame.pack(fill="x", pady=5, ipady=5)
 
         ttk.Label(product_selection_frame, text="Product:").pack(side="left", padx=5)
         self.sales_product_combo = ttk.Combobox(product_selection_frame, state="readonly")
@@ -265,9 +308,8 @@ class POSApp(tk.Tk):
 
         ttk.Button(product_selection_frame, text="Add", command=self.add_to_cart).pack(side="left", padx=5)
 
-        # Cart display
         cart_frame = ttk.LabelFrame(left_frame, text="Current Sale")
-        cart_frame.pack(fill="both", expand=True, pady=5)
+        cart_frame.pack(fill="both", expand=True, pady=(10, 0))
 
         self.cart_tree = ttk.Treeview(cart_frame, columns=("product", "quantity", "price"), show="headings")
         self.cart_tree.heading("product", text="Product")
@@ -275,19 +317,17 @@ class POSApp(tk.Tk):
         self.cart_tree.heading("price", text="Price")
         self.cart_tree.pack(fill="both", expand=True)
 
-        # Right side: Total and finalize
         right_frame = ttk.Frame(sales_frame)
-        right_frame.pack(side="right", fill="y", padx=10, pady=10)
+        right_frame.pack(side="right", fill="y")
 
         total_frame = ttk.LabelFrame(right_frame, text="Total")
-        total_frame.pack(pady=5)
+        total_frame.pack(pady=5, fill="x")
 
-        self.total_label = ttk.Label(total_frame, text="$0.00", font=("Arial", 24))
+        self.total_label = ttk.Label(total_frame, text="$0.00", style="Total.TLabel")
         self.total_label.pack(padx=20, pady=20)
 
-        ttk.Button(right_frame, text="Finalize Sale", command=self.finalize_sale).pack(fill="x", pady=5)
+        ttk.Button(right_frame, text="Finalize Sale", command=self.finalize_sale, style="Accent.TButton").pack(fill="x", pady=5)
         ttk.Button(right_frame, text="Cancel Sale", command=self.cancel_sale).pack(fill="x", pady=5)
-
 
     def load_products_to_listbox(self):
         self.product_list.delete(0, tk.END)
@@ -333,10 +373,8 @@ class POSApp(tk.Tk):
             messagebox.showerror("Error", "Not enough stock available.")
             return
 
-        # Check if product is already in cart
         for item in self.current_cart:
             if item['name'] == product['name']:
-                # Check stock for existing item + new quantity
                 if item['quantity'] + quantity > product['quantity']:
                     messagebox.showerror("Error", "Not enough stock available for the new quantity.")
                     return
@@ -353,7 +391,8 @@ class POSApp(tk.Tk):
         self.update_cart_display()
 
     def update_cart_display(self):
-        self.cart_tree.delete(*self.cart_tree.get_children())
+        for i in self.cart_tree.get_children():
+            self.cart_tree.delete(i)
         self.current_total = 0.0
         for item in self.current_cart:
             item_total = item['price'] * item['quantity']
@@ -367,7 +406,6 @@ class POSApp(tk.Tk):
             return
 
         if messagebox.askyesno("Confirm Sale", f"Finalize sale for ${self.current_total:.2f}?"):
-            # Update stock
             for item in self.current_cart:
                 for i, product in enumerate(self.product_manager.products):
                     if product['name'] == item['name']:
@@ -471,16 +509,15 @@ class POSApp(tk.Tk):
 
 def main():
     root = tk.Tk()
-    root.withdraw() # Hide the main window
+    root.withdraw()
 
     login = LoginScreen(root)
-    root.wait_window(login) # Wait for the login window to close
+    root.wait_window(login)
 
     if login.user_role:
         app = POSApp(user_role=login.user_role)
         app.mainloop()
     else:
-        # If login was cancelled, root is destroyed in on_closing
         pass
 
 if __name__ == "__main__":
