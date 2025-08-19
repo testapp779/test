@@ -12,14 +12,15 @@ class SaleManager:
         except (FileNotFoundError, json.JSONDecodeError):
             return []
 
-    def record_sale(self, cart, total, customer_id):
+    def record_sale(self, cart, total, customer_id, discount_percentage):
         sales = self.get_sales()
 
         sale = {
             "timestamp": datetime.now().isoformat(),
             "items": cart,
             "total": total,
-            "customer_id": customer_id
+            "customer_id": customer_id,
+            "discount_percentage": discount_percentage
         }
         sales.append(sale)
 
